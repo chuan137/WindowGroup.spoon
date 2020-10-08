@@ -19,8 +19,8 @@ function obj:init()
     self.logger.v('Initializing spoon: WindowGroup')
     self._floatingWindow = {window=nil, focus=false}
     self._tiledWindows = {length=0, left=nil, right=nil, focused=nil}
-    self._tiledWindows.leftRect = hs.geometry{0,0,0.6,1}
-    self._tiledWindows.rightRect = hs.geometry{0.6,0,0.4,1}
+    self._tiledWindows.leftRect = hs.geometry{0,0,0.4,1}
+    self._tiledWindows.rightRect = hs.geometry{0.4,0,0.6,1}
 
     local wf = hs.window.filter
     self.wf_visibleWindows = wf.new{default={visible=true,currentSpace=true,allowScreens='0,0'}}
@@ -46,6 +46,32 @@ function obj:init()
                 tiled.focused = win
             end
         end,
+    })
+
+    self.wf_visibleWindows:subscribe(wf.windowMoved, {
+        -- remove tiled window if moved
+        function (win, appName, e)
+            local tiled = self._tiledWindows
+            local screenSize = hs.screen.primaryScreen():frame()
+            local screenWidth = screenSize.w
+            local screenHeight = screenSize.h
+            if tiled.left and tiled.left:id() == win:id() then
+                local t = tiled.left.absPosInTile
+                if hs.geometry{x=t.x,y=t.y} ~= win:topLeft()
+                    or hs.geometry{w=t.w,h=t.h} ~= win:size() then
+                    tiled.left = nil
+                    tiled.focused = nil
+                end
+            end
+            if tiled.right and tiled.right:id() == win:id() then
+                local t = tiled.right.absPosInTile
+                if hs.geometry{x=t.x,y=t.y} ~= win:topLeft()
+                    or hs.geometry{w=t.w,h=t.h} ~= win:size() then
+                    tiled.right = nil
+                    tiled.focused = nil
+                end
+            end
+        end
     })
 
 end
@@ -87,12 +113,18 @@ function tiledWindow:moveToLeft(rect)
     local rect = rect or hs.geometry{x=0,y=0,w=0.5,h=1}
     self.window:move(rect, 0)
     self.posInTile = rect
+    local pos = self.window:topLeft()
+    local size = self.window:size()
+    self.absPosInTile = {x=pos.x,y=pos.y,w=size.w,h=size.h}
 end
 
 function tiledWindow:moveToRight(rect)
     local rect = rect or hs.geometry{x=0.5,y=0,w=0.5,h=1}
     self.window:move(rect, 0)
     self.posInTile = rect
+    local pos = self.window:topLeft()
+    local size = self.window:size()
+    self.absPosInTile = {x=pos.x,y=pos.y,w=size.w,h=size.h}
 end
 
 function tiledWindow:focus()
